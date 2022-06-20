@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,11 +10,18 @@ public class UnitCommandGiver : MonoBehaviour
 
     private Camera mainCamera;
 
-    [SerializeField ]private LayerMask layerMask = new LayerMask();
+    [SerializeField] private LayerMask layerMask = new LayerMask();
 
     private void Start()
     {
         mainCamera = Camera.main;
+
+        GameOverHandler.ClientOnGameOver += ClientHandleGameOver;
+    }
+
+    private void OnDestroy()
+    {
+        GameOverHandler.ClientOnGameOver -= ClientHandleGameOver;
     }
 
     private void Update()
@@ -27,6 +35,21 @@ public class UnitCommandGiver : MonoBehaviour
 
         if(!Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, layerMask)) { return; }
 
+        if(hit.collider.TryGetComponent<Targetable>(out Targetable target)) 
+        {
+            if(target.hasAuthority)
+            {
+                TryMove(hit.point);
+                return;
+            }
+
+            if (!target.hasAuthority)
+            {
+                TryTarget(target);
+                return;
+            }
+        }
+
         TryMove(hit.point);
     }
 
@@ -36,5 +59,18 @@ public class UnitCommandGiver : MonoBehaviour
         {
             unit.GetUnitMovement().CmdMove(point);
         }
+    }
+
+    private void TryTarget(Targetable target)
+    {
+        foreach (Unit unit in unitSelectorHandaler.SelectedUnits)
+        {
+            unit.GetTargeter().CmdSetTarget(target.gameObject);
+        }
+    }
+
+    private void ClientHandleGameOver(string obj)
+    {
+        enabled = false;
     }
 }

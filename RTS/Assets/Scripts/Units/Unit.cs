@@ -8,8 +8,10 @@ using System;
 public class Unit : NetworkBehaviour
 {
     [SerializeField] private UnitMovement unitMovement = null;
+    [SerializeField] private Targater targater = null;
     [SerializeField] private UnityEvent onSelected = null;
     [SerializeField] private UnityEvent onDeselected = null;
+    [SerializeField] private Health health = null;
 
     public static event Action<Unit> ServerOnUnitSpawn;
     public static event Action<Unit> ServerOnUnitDespawn;
@@ -17,24 +19,35 @@ public class Unit : NetworkBehaviour
     public static event Action<Unit> AuthorityOnUnitSespawned;
     public static event Action<Unit> AuthorityOnUnitDesawned;
 
-
-
     #region Server
 
     public override void OnStartServer()
     {
         ServerOnUnitSpawn?.Invoke(this);
+        health.ServerOnDie += ServerHandleDie;
     }
 
     public override void OnStopServer()
     {
         ServerOnUnitDespawn?.Invoke(this);
+        health.ServerOnDie -= ServerHandleDie;
+    }
+
+    [Server]
+    private void ServerHandleDie()
+    {
+        NetworkServer.Destroy(gameObject);
     }
     #endregion
 
     public UnitMovement GetUnitMovement()
     {
         return unitMovement;
+    }
+
+    public Targater GetTargeter()
+    {
+        return targater;
     }
 
     #region client
@@ -54,16 +67,14 @@ public class Unit : NetworkBehaviour
         onDeselected?.Invoke();
     }
 
-    public override void OnStartClient()
+    public override void OnStartAuthority()
     {
-        if(!isClientOnly || !hasAuthority) { return; }
-
         AuthorityOnUnitSespawned?.Invoke(this);
     }
 
     public override void OnStopClient()
     {
-        if(!isClientOnly || !hasAuthority) { return; }
+        if(!hasAuthority) { return; }
         AuthorityOnUnitDesawned?.Invoke(this);
     }
 
